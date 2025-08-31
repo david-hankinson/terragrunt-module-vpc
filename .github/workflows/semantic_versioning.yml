@@ -1,0 +1,89 @@
+name: Semantic Versioning & Terraform Checks
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Lint
+        run: |
+          curl -L https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip -o tflint.zip
+          unzip tflint.zip
+          sudo mv tflint /usr/local/bin/
+          tflint
+
+  semver-tag:
+    needs: terraform-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Get commit message
+        id: get_commit
+        run: |
+          commit_msg=$(git log -1 --pretty=%B)
+          echo "commit_msg=$commit_msg" >> $GITHUB_OUTPUT
+
+      - name: Determine semver bump
+        id: semver
+        run: |
+          latest_tag="${{ steps.get_tag.outputs.latest_tag }}"
+          commit_msg="${{ steps.get_commit.outputs.commit_msg }}"
+          major=$(echo $latest_tag | cut -d. -f1)
+          minor=$(echo $latest_tag | cut -d. -f2)
+          patch=$(echo $latest_tag | cut -d. -f3)
+
+          if echo "$commit_msg" | grep -iq "BREAKING CHANGE"; then
+            new_tag="$((major+1)).0.0"
+            semver_type="major"
+          elif echo "$commit_msg" | grep -iq "feat:"; then
+            new_tag="$major.$((minor+1)).0"
+            semver_type="minor"
+          elif echo "$commit_msg" | grep -iq "fix:"; then
+            new_tag="$major.$minor.$((patch+1))"
+            semver_type="patch"
+          else
+            new_tag="$latest_tag"
+            semver_type="none"
+          fi
+
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+          echo "semver_type=$semver_type" >> $GITHUB_OUTPUT
+
+      - name: Print versioning info
+        run: |
+          echo "current tag number: ${{ steps.get_tag.outputs.latest_tag }}"
+          echo "found commit message containing: ${{ steps.get_commit.outputs.commit_msg }}"
+          if [ "${{ steps.semver.outputs.semver_type }}" != "none" ]; then
+            echo "creating new tag: ${{ steps.semver.outputs.new_tag }}"
+          else
+            echo "no semver keyword found, not creating new tag"
+          fi
+
+      - name: Create new tag
+        if: steps.semver.outputs.semver_type != 'none'
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git tag ${{ steps.semver.outputs.new_tag }}
+          git push origin ${{ steps.semver.outputs.new_tag }}
