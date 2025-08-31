@@ -28,6 +28,8 @@ jobs:
   semver-tag:
     needs: terraform-checks
     runs-on: ubuntu-latest
+    env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,8 +84,6 @@ jobs:
 
       - name: Create new tag
         if: steps.semver.outputs.semver_type != 'none'
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
