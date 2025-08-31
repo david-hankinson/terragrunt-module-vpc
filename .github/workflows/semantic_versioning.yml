@@ -1,154 +1,92 @@
-      - name: Format Branch Name
+name: Semantic Versioning & Terraform Checks
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Lint
         run: |
-          BRANCH_CLEAN=$(echo "${{ github.ref_name }}" | tr '/' '-')
-          echo "CLEAN_BRANCH=$BRANCH_CLEAN" >> $GITHUB_ENV
+          curl -L https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip -o tflint.zip
+          unzip tflint.zip
+          sudo mv tflint /usr/local/bin/
+          tflint
 
-      - name: Fetch Tags
-        run: git fetch --tags --force
-      
-      - name: Generate Semantic Version
-        id: version
-        uses: paulhatch/semantic-version@v5.4.0
-        with:
-          tag_prefix: "v"
-          major_pattern: "MAJOR"
-          minor_pattern: "MINOR"
-          patch_pattern: "PATCH"
-          version_format: "v${major}.${minor}.${patch}"
-          bump_each_commit: false  
-          search_commit_body: true  
+  semver-tag:
+    needs: terraform-checks
+    runs-on: ubuntu-latest
+    env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Generate Pre-Release Version
-        if: contains(fromJson('["alpha", "beta", "next"]'), github.ref_name)
-        id: prerelease
+      - name: Get latest tag
+        id: get_tag
         run: |
-          PREVIOUS_TAG=$(git tag --list "${{ steps.version.outputs.version }}-${{ env.CLEAN_BRANCH }}.*" | sort -V | tail -n 1)
-          PRERELEASE_NUM=$(echo "$PREVIOUS_TAG" | grep -oE '[0-9]+$' || echo "0")
-          NEW_PRERELEASE=$((PRERELEASE_NUM + 1))
-          echo "NEW_PRERELEASE=$NEW_PRERELEASE" >> $GITHUB_ENV
-          echo "PRERELEASE_TAG=${{ steps.version.outputs.version }}-${{ env.CLEAN_BRANCH }}.$NEW_PRERELEASE" >> $GITHUB_ENV
-      
-      - name: Push Pre-Release Tag
-        if: contains(fromJson('["alpha", "beta", "next"]'), github.ref_name)
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Get commit message
+        id: get_commit
         run: |
-          git tag ${{ env.PRERELEASE_TAG }}
-          git push origin ${{ env.PRERELEASE_TAG }}
+          commit_msg=$(git log -1 --pretty=%B)
+          echo "commit_msg=$commit_msg" >> $GITHUB_OUTPUT
 
-      - name: Push Release Tag
-        if: contains(fromJson('["master"]'), github.ref_name)
+      - name: Determine semver bump
+        id: semver
         run: |
-          git tag ${{ steps.version.outputs.version }}
-          git push origin ${{ steps.version.outputs.version }}
+          latest_tag="${{ steps.get_tag.outputs.latest_tag }}"
+          commit_msg="${{ steps.get_commit.outputs.commit_msg }}"
+          major=$(echo $latest_tag | cut -d. -f1)
+          minor=$(echo $latest_tag | cut -d. -f2)
+          patch=$(echo $latest_tag | cut -d. -f3)
 
-# name: Automated Tagging
-# on:
-#   push:
-#     branches:
+          if echo "$commit_msg" | grep -iq "BREAKING CHANGE"; then
+            new_tag="$((major+1)).0.0"
+            semver_type="major"
+          elif echo "$commit_msg" | grep -iq "feat:"; then
+            new_tag="$major.$((minor+1)).0"
+            semver_type="minor"
+          elif echo "$commit_msg" | grep -iq "fix:"; then
+            new_tag="$major.$minor.$((patch+1))"
+            semver_type="patch"
+          else
+            new_tag="$latest_tag"
+            semver_type="none"
+          fi
 
-#       - main
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+          echo "semver_type=$semver_type" >> $GITHUB_OUTPUT
 
-# jobs:
-#   tag:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v2
-#       - name: Create Tag
-#         run: |
-#           git config --local user.email "action@github.com"
-#           git config --local user.name "GitHub Action"
-#           git tag -a "v${{ github.run_number }}" -m "Release v${{ github.run_number }}"
-#           git push origin "v${{ github.run_number }}"
+      - name: Print versioning info
+        run: |
+          echo "current tag number: ${{ steps.get_tag.outputs.latest_tag }}"
+          echo "found commit message containing: ${{ steps.get_commit.outputs.commit_msg }}"
+          if [ "${{ steps.semver.outputs.semver_type }}" != "none" ]; then
+            echo "creating new tag: ${{ steps.semver.outputs.new_tag }}"
+          else
+            echo "no semver keyword found, not creating new tag"
+          fi
 
-
-# # name: Semantic Versioning & Terraform Checks
-
-# # on:
-# #   push:
-# #     branches:
-# #       - main
-
-# # jobs:
-# #   terraform-checks:
-# #     runs-on: ubuntu-latest
-# #     steps:
-# #       - name: Checkout code
-# #         uses: actions/checkout@v4
-
-# #       - name: Set up Terraform
-# #         uses: hashicorp/setup-terraform@v2
-
-# #       - name: Terraform Format
-# #         run: terraform fmt -check -recursive
-
-# #       - name: Terraform Lint
-# #         run: |
-# #           curl -L https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip -o tflint.zip
-# #           unzip tflint.zip
-# #           sudo mv tflint /usr/local/bin/
-# #           tflint
-
-# #   semver-tag:
-# #     needs: terraform-checks
-# #     runs-on: ubuntu-latest
-# #     env:
-# #           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-# #     steps:
-# #       - name: Checkout code
-# #         uses: actions/checkout@v4
-
-# #       - name: Get latest tag
-# #         id: get_tag
-# #         run: |
-# #           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-# #           echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
-
-# #       - name: Get commit message
-# #         id: get_commit
-# #         run: |
-# #           commit_msg=$(git log -1 --pretty=%B)
-# #           echo "commit_msg=$commit_msg" >> $GITHUB_OUTPUT
-
-# #       - name: Determine semver bump
-# #         id: semver
-# #         run: |
-# #           latest_tag="${{ steps.get_tag.outputs.latest_tag }}"
-# #           commit_msg="${{ steps.get_commit.outputs.commit_msg }}"
-# #           major=$(echo $latest_tag | cut -d. -f1)
-# #           minor=$(echo $latest_tag | cut -d. -f2)
-# #           patch=$(echo $latest_tag | cut -d. -f3)
-
-# #           if echo "$commit_msg" | grep -iq "BREAKING CHANGE"; then
-# #             new_tag="$((major+1)).0.0"
-# #             semver_type="major"
-# #           elif echo "$commit_msg" | grep -iq "feat:"; then
-# #             new_tag="$major.$((minor+1)).0"
-# #             semver_type="minor"
-# #           elif echo "$commit_msg" | grep -iq "fix:"; then
-# #             new_tag="$major.$minor.$((patch+1))"
-# #             semver_type="patch"
-# #           else
-# #             new_tag="$latest_tag"
-# #             semver_type="none"
-# #           fi
-
-# #           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
-# #           echo "semver_type=$semver_type" >> $GITHUB_OUTPUT
-
-# #       - name: Print versioning info
-# #         run: |
-# #           echo "current tag number: ${{ steps.get_tag.outputs.latest_tag }}"
-# #           echo "found commit message containing: ${{ steps.get_commit.outputs.commit_msg }}"
-# #           if [ "${{ steps.semver.outputs.semver_type }}" != "none" ]; then
-# #             echo "creating new tag: ${{ steps.semver.outputs.new_tag }}"
-# #           else
-# #             echo "no semver keyword found, not creating new tag"
-# #           fi
-
-# #       - name: Create new tag
-# #         if: steps.semver.outputs.semver_type != 'none'
-# #         run: |
-# #           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-# #           git config --global user.name "github-actions[bot]"
-# #           git tag ${{ steps.semver.outputs.new_tag }}
-# #           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
-# #           git push origin ${{ steps.semver.outputs.new_tag }}
+      - name: Create new tag
+        if: steps.semver.outputs.semver_type != 'none'
+        run: |
+          git config --global user.email "davidmhankinson@outlook.com"
+          git config --global user.name "david-hankinson"
+          git tag ${{ steps.semver.outputs.new_tag }}
+          git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          git push origin ${{ steps.semver.outputs.new_tag }}
