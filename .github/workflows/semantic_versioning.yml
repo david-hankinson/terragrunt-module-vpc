@@ -87,6 +87,11 @@ jobs:
         run: |
           git config --global user.email "davidmhankinson@outlook.com"
           git config --global user.name "david-hankinson"
-          git tag ${{ steps.semver.outputs.new_tag }}
-          git remote set-url origin https://github.com/david-hankinson/terragrunt-module-vpc.git
-          git push origin ${{ steps.semver.outputs.new_tag }}
+          git fetch --tags
+          if ! git rev-parse "refs/tags/${{ steps.semver.outputs.new_tag }}" >/dev/null 2>&1; then
+            git tag ${{ steps.semver.outputs.new_tag }}
+            git remote set-url origin https://github.com/david-hankinson/terragrunt-module-vpc.git
+            git push origin ${{ steps.semver.outputs.new_tag }}
+          else
+            echo "Tag ${{ steps.semver.outputs.new_tag }} already exists on remote, skipping push."
+          fi
