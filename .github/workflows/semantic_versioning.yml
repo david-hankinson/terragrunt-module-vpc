@@ -1,48 +1,68 @@
-   steps:
-    - name: Auto Increment Semver Action
-      uses: MCKanpolat/auto-semver-action@v2
-      id: versioning
-      with:
-        releaseType: patch 
-        incrementPerCommit: false
-        github_token: ${{ secrets.PAT_TOKEN }}
+name: Semantic Versioning & Terraform Checks
 
-    - name: Next Release Number
-      run: echo ${{ steps.versioning.outputs.version }}
+on:
+  push:
+    branches:
+      - main
 
-# name: Semantic Versioning & Terraform Checks
+jobs:
+  terraform-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-# on:
-#   push:
-#     branches:
-#       - main
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
 
-# jobs:
-#   terraform-checks:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
 
-#       - name: Set up Terraform
-#         uses: hashicorp/setup-terraform@v2
+      - name: Terraform Lint
+        run: |
+          curl -L https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip -o tflint.zip
+          unzip tflint.zip
+          sudo mv tflint /usr/local/bin/
+          tflint
 
-#       - name: Terraform Format
-#         run: terraform fmt -check -recursive
+  semver-tag:
+    needs: terraform-checks
+    runs-on: ubuntu-latest
+    env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+    steps:
+        - name: Auto Increment Semver Action
+        uses: MCKanpolat/auto-semver-action@v2
+        id: versioning
+        with:
+          releaseType: patch 
+          incrementPerCommit: false
+          github_token: ${{ secrets.PAT_TOKEN }}
 
-#       - name: Terraform Lint
-#         run: |
-#           curl -L https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip -o tflint.zip
-#           unzip tflint.zip
-#           sudo mv tflint /usr/local/bin/
-#           tflint
+      - name: Next Release Number
+        run: echo ${{ steps.versioning.outputs.version }}
 
-#   semver-tag:
-#     needs: terraform-checks
-#     runs-on: ubuntu-latest
-#     env:
-#           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-#     steps:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #       - name: Checkout code
 #         uses: actions/checkout@v4
 
