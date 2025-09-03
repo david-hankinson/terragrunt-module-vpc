@@ -39,8 +39,8 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           terraform validate -no-color
           if [ $? -ne 0 ]; then
-        echo "::warning file=terraform_fmt_lint.yml::terraform validate command failed:"
-        echo "$validate_output"
+          echo "::warning file=terraform_fmt_lint.yml::terraform validate command failed:"
+          echo "$validate_output"
           fi
 
       - name: Output warnings if fmt or lint issues found
