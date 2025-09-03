@@ -2,7 +2,7 @@ name: Semantic versioning
 
 on:
   push:
-    paths: 
+    branch: 
       - main
 
 jobs: 
@@ -16,6 +16,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-          
+
 
   
