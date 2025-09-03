@@ -1,12 +1,13 @@
 name: Semantic versioning
 
-jobs: read current tags and push new tags based on commit messages
-steps: 
-  - name: Checkout
-    uses: actions/checkout@v4
-  - name: Semantic Release
-    uses: cycjimmy/semantic-release-action@v4
-    env:
-      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+jobs: 
+  read current tags and push new tags based on commit messages:
+  steps: 
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Semantic Release
+      uses: cycjimmy/semantic-release-action@v4
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
   
