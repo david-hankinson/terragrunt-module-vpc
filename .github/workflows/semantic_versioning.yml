@@ -1,4 +1,6 @@
 name: Semantic versioning
+
+jobs: read current tags and push new tags based on commit messages
 steps: 
   - name: Checkout
     uses: actions/checkout@v4
