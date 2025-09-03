@@ -1,21 +1,84 @@
-name: Semantic versioning
+name: Version Update Pipeline
 
 on:
   push:
-    branch: 
+    branches:
       - main
 
-jobs: 
-  read-update-tags:
+jobs:
+  update-version:
     runs-on: ubuntu-latest
-    steps: 
-      - name: Checkout
+    steps:
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      - name: Set up Git
+        run: |
+          git config user.name "david-hankinson"
+          git config user.email "davidmhankinson@outlook.com"
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Get commit message
+        id: commit_message
+        run: |
+          commit_message=$(git log -1 --pretty=%B)
+          echo "message=$commit_message" >> $GITHUB_OUTPUT
+
+      - name: Determine version increment
+        id: version_increment
+        run: |
+          commit_message="${{ steps.commit_message.outputs.message }}"
+          latest_tag="${{ steps.get_tag.outputs.latest_tag }}"
+          
+          # Remove 'v' prefix for version parsing
+          version=${latest_tag#v}
+          
+          # Parse version into major, minor, patch
+          IFS='.' read -r major minor patch <<< "$version"
+          
+          # Default to patch increment
+          increment="patch"
+          
+          # Check commit message for conventional commit prefixes
+          if [[ $commit_message == major:* ]]; then
+            increment="major"
+          elif [[ $commit_message == feat:* ]] || [[ $commit_message == minor:* ]]; then
+            increment="minor"
+          elif [[ $commit_message == fix:* ]]; then
+            increment="patch"
+          fi
+          
+          # Calculate new version
+          case $increment in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          new_version="v$major.$minor.$patch"
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "New version: $new_version"
+
+      - name: Create and push new tag
+        run: |
+          new_version="${{ steps.version_increment.outputs.new_version }}"
+          git tag $new_version
+          git push origin $new_version
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-
-
-
-  
