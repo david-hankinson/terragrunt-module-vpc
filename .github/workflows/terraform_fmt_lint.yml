@@ -1,0 +1,51 @@
+name: Terraform Format and Lint
+
+on:
+  push:
+    paths:
+      - '**.tf'
+      - '**.tfvars'
+  pull_request:
+    paths:
+      - '**.tf'
+      - '**.tfvars'
+
+jobs:
+  terraform-fmt-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Run terraform fmt
+        id: fmt
+        run: |
+          fmt_output=$(terraform fmt -check -recursive)
+          echo "$fmt_output"
+          echo "FMT_OUTPUT<<EOF" >> $GITHUB_ENV
+          echo "$fmt_output" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Run terraform validate
+        id: validate
+        run: |
+          validate_output=$(terraform validate -no-color || true)
+          echo "$validate_output"
+          echo "VALIDATE_OUTPUT<<EOF" >> $GITHUB_ENV
+          echo "$validate_output" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Output warnings if fmt or lint issues found
+        if: env.FMT_OUTPUT != '' || env.VALIDATE_OUTPUT != 'Success! The configuration is valid.'
+        run: |
+          if [ "$FMT_OUTPUT" != "" ]; then
+            echo "::warning file=terraform_fmt_lint.yml::terraform fmt found files that need formatting:"
+            echo "$FMT_OUTPUT"
+          fi
+          if [ "$VALIDATE_OUTPUT" != "Success! The configuration is valid." ]; then
+            echo "::warning file=terraform_fmt_lint.yml::terraform validate found issues:"
+            echo "$VALIDATE_OUTPUT"
+          fi
