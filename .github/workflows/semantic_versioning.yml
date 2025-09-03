@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+    workflow_run:
+      workflows: ["terraform_fmt_lint.yml"]
+      types:
+        - completed
+
 jobs:
   update-version:
     runs-on: ubuntu-latest

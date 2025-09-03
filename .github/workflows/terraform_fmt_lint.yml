@@ -2,13 +2,8 @@ name: Terraform Format and Lint
 
 on:
   push:
-    paths:
-      - '**.tf'
-      - '**.tfvars'
-  pull_request:
-    paths:
-      - '**.tf'
-      - '**.tfvars'
+    branches:
+      - main
 
 jobs:
   terraform-fmt-lint:
