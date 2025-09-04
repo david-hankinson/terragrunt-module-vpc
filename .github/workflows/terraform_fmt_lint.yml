@@ -5,24 +5,88 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+
+  tf_fmt_validate:
     runs-on: ubuntu-latest
+    name: Check Terraform file are formatted correctly
     steps:
-      - name: checkout
-        uses: actions/checkout@v3
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: terraform fmt
+        uses: dflook/terraform-fmt@v2
+        with:
+          path: .
+
       - name: terraform validate
-        uses: hashicorp/setup-terraform@v2.0.3
+        uses: dflook/terraform-validate@v2
+        id: validate
+        with:
+          path: .
+
+  tflint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      name: Checkout source code
+
+    - uses: actions/cache@v4
+      name: Cache plugin dir
+      with:
+        path: ~/.tflint.d/plugins
+        key: ${{ matrix.os }}-tflint-${{ hashFiles('.tflint.hcl') }}
+
+    - uses: terraform-linters/setup-tflint@v5
+      name: Setup TFLint
+      with:
+        tflint_version: v0.52.0
+    - name: Show version
+      run: tflint --version
+
+    - name: Init TFLint
+      run: tflint --init
+      env:
+        # https://github.com/terraform-linters/tflint/blob/master/docs/user-guide/plugins.md#avoiding-rate-limiting
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+    - name: Run TFLint
+      run: tflint -f compact
+
+  terrascan_job:
+    runs-on: ubuntu-latest
+    name: terrascan-action
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Run Terrascan
+      id: terrascan
+      uses: tenable/terrascan-action@main
+      with:
+        iac_type: 'terraform'
+        iac_version: 'v14'
+        policy_type: 'aws'
+        only_warn: true  
+  
+
+  
+    
+    # steps:
+    #   - name: checkout
+    #     uses: actions/checkout@v3
       
-      - name: run tflint
-        uses: terraform-linters/setup-tflint@v5.0.0 
+    #   - name: terraform validate
+    #     uses: hashicorp/setup-terraform@v2.0.3
+      
+    #   - name: run tflint
+    #     uses: terraform-linters/setup-tflint@v5.0.0 
 
-      # - name: run tfsec
-      #   uses: Flydiverny/setup-tfsec@v1
-      #   # run: tfsec .
+    #   # - name: run tfsec
+    #   #   uses: Flydiverny/setup-tfsec@v1
+    #   #   # run: tfsec .
 
-      - name: terrascan
-        uses: tenable/terrascan-action@v1.4.1
+    #   - name: terrascan
+    #     uses: tenable/terrascan-action@v1.4.1
       
 
         
