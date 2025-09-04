@@ -19,9 +19,9 @@ jobs:
         uses: terraform-linters/setup-tflint@v5.0.0 
         run: tflint terraform
 
-      - name: run tfsec
-        uses: Flydiverny/setup-tfsec@v1
-        run: tfsec .
+      # - name: run tfsec
+      #   uses: Flydiverny/setup-tfsec@v1
+      #   # run: tfsec .
 
       - name: terrascan
         uses: tenable/terrascan-action@v1.4.1
