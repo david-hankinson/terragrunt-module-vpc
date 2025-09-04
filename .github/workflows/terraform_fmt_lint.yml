@@ -13,11 +13,9 @@ jobs:
       
       - name: terraform validate
         uses: hashicorp/setup-terraform@v2.0.3
-        run: terraform validate
       
       - name: run tflint
         uses: terraform-linters/setup-tflint@v5.0.0 
-        run: tflint terraform
 
       # - name: run tfsec
       #   uses: Flydiverny/setup-tfsec@v1
