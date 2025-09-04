@@ -1,56 +1,25 @@
-name: Terraform Format and Lint
+name: Terraform lint and terrascan
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  terraform-fmt-lint:
+  build:
     runs-on: ubuntu-latest
+    container: colinbut/terraform-build-container:1.0.0
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: checkout
+        uses: actions/checkout@v3
+      
+      - name: terraform validate
+        run: terraform validate
+      
+      - name: run tflint
+        run: tflint terraform
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: run tfsec
+        run: tfsec .
 
-      - name: Run terraform fmt
-        id: fmt
-        run: |
-          fmt_output=$(terraform fmt -check -recursive 2>&1)
-          true
-          echo "$fmt_output"
-          echo "FMT_OUTPUT<<EOF" >> $GITHUB_ENV
-          echo "$fmt_output" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          if [ $? -ne 0 ]; then
-            echo "::warning file=terraform_fmt_lint.yml::terraform fmt command failed:"
-            echo "$fmt_output"
-          fi
-
-      - name: Run terraform validate
-        id: validate
-        run: |
-          validate_output=$(terraform validate -no-color 2>&1)
-          echo "$validate_output"
-          echo "VALIDATE_OUTPUT<<EOF" >> $GITHUB_ENV
-          echo "$validate_output" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          terraform validate -no-color
-          if [ $? -ne 0 ]; then
-          echo "::warning file=terraform_fmt_lint.yml::terraform validate command failed:"
-          echo "$validate_output"
-          fi
-
-      - name: Output warnings if fmt or lint issues found
-        if: env.FMT_OUTPUT != '' || env.VALIDATE_OUTPUT != 'Success! The configuration is valid.'
-        run: |
-          if [ "$FMT_OUTPUT" != "" ]; then
-            echo "::warning file=terraform_fmt_lint.yml::terraform fmt found files that need formatting:"
-            echo "$FMT_OUTPUT"
-          fi
-          if [ "$VALIDATE_OUTPUT" != "Success! The configuration is valid." ]; then
-            echo "::warning file=terraform_fmt_lint.yml::terraform validate found issues:"
-            echo "$VALIDATE_OUTPUT"
-          fi
+      - name: run terrascan
+        run: terrascan scan -d .terrascren

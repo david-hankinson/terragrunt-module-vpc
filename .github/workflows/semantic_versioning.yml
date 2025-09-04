@@ -1,4 +1,4 @@
-name: Version Update Pipeline
+name: tag the repo using semantic versioning and conventional commits
 
 on:
   push:
