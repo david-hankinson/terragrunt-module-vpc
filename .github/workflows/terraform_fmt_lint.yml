@@ -20,5 +20,8 @@ jobs:
       - name: run tfsec
         run: tfsec .
 
-      - name: run terrascan
-        run: terrascan scan -d .terrascren
+      - name: terrascan
+        uses: tenable/terrascan-action@v1.4.1
+      
+
+        
