@@ -1,6 +1,6 @@
-include "root" {
-  path = find_in_parent_folders("root.hcl")
-}
+# include "root" {
+#   path = find_in_parent_folders("root.hcl")
+# }
 
 terraform {
   // NOTE: Take note that this source here uses
@@ -11,16 +11,16 @@ terraform {
   //
   // Assume that a user consuming this unit will exclusively have access
   // to the directory this file is in, and nothing else in this repository.
-  source = "../module/"
+  source = "units/network"
 }
 
 inputs = {
   ## env inputs
-  env                      = local.env
+  # env                      = local.env
 
   ## ec2 inputs
   ec2_instance_type = "t3.medium"
-  vpc_zone_identifier = flatten([dependency.network.outputs.public_subnets_ids, dependency.network.outputs.private_subnets_ids])
+  # vpc_zone_identifier = flatten([outputs.public_subnets_ids, outputs.private_subnets_ids])
 
   ## ecs inputs
   aws_ecs_cluster_name = "non-prod-ecs-cluster"
@@ -29,11 +29,18 @@ inputs = {
   ecs_minimum_scaling_step_size = 1
   ecs_maximum_scaling_step_size = 2
   ecs_target_capacity_percentage = 80
-  vpc_sg = dependency.network.outputs.vpc_sg
-  vpc_id = dependency.network.outputs.vpc_id
-  vpc_security_group_ids = dependency.network.outputs.vpc_sg
-  public_subnets_ids = dependency.network.outputs.public_subnets_ids
-  private_subnets_ids = dependency.network.outputs.private_subnets_ids
-  vpc_cidr_block = dependency.network.outputs.vpc_cidr_block
-  internet_gw_id = dependency.network.outputs.internet_gw_id
+  # vpc_sg = outputs.vpc_sg
+  # vpc_id = outputs.vpc_id
+  # vpc_security_group_ids = outputs.vpc_sg
+  # public_subnets_ids = outputs.public_subnets_ids
+  # private_subnets_ids = outputs.private_subnets_ids
+  # vpc_cidr_block = outputs.vpc_cidr_block
+  # internet_gw_id = outputs.internet_gw_id
+}
+
+# Configure what repositories to search when you run 'terragrunt catalog'
+catalog {
+  urls = [
+    "https://github.com/david-hankinson/terragrunt-module-vpc.git",
+  ]
 }
