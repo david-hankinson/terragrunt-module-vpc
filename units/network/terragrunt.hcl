@@ -58,10 +58,8 @@ terraform {
   //
   // Assume that a user consuming this unit will exclusively have access
   // to the directory this file is in, and nothing else in this repository.
-  source = "https://github.com/david-hankinson/terragrunt-module-vpc.git//module?ref=main"
+  source = "../../module"
 }
-
-catalog 
 
 inputs = {
   ## env inputs
